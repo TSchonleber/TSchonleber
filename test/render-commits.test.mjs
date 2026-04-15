@@ -47,3 +47,21 @@ test('commitsToSvg escapes commit messages containing XML-hostile chars', () => 
   assert.ok(svg.includes('&amp;'));
   assert.ok(svg.includes('&gt;redirect'));
 });
+
+test('commitsToSvg truncates BEFORE escaping (order matters)', () => {
+  // A message that is both >60 chars long AND contains an XML-hostile char
+  // near the truncation point. Correct order (truncate-then-escape) yields
+  // a valid entity (`&lt;ta…`) before the ellipsis. Wrong order (escape-then-truncate)
+  // would cut inside the `&lt;` entity, producing a broken `&lt` (unterminated).
+  const events = [{
+    type: 'PushEvent',
+    created_at: '2026-04-15T00:00:00Z',
+    repo: { name: 'Tschonleber/x' },
+    payload: { commits: [{ sha: 'ord', message: 'a'.repeat(55) + 'x<tail' }] },
+  }];
+  const svg = commitsToSvg(events);
+  // Correct output contains the complete escaped entity followed by truncation
+  assert.ok(svg.includes('&lt;ta…'), 'truncate-then-escape must produce complete entity before ellipsis');
+  // Wrong output would have an unterminated &lt followed by ellipsis
+  assert.ok(!/&lt…/.test(svg), 'ellipsis must not land directly after &lt (unterminated entity)');
+});
