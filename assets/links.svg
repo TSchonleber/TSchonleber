@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="850" height="170" viewBox="0 0 850 170" xml:space="preserve" font-family="'SF Mono', Monaco, Consolas, monospace">
+  <rect width="850" height="170" fill="#0d1117"/>
+
+  <text x="30" y="38" font-size="13" fill="#8b949e">tschonleber@obsidian:~$ <tspan fill="#c9d1d9">cat ~/links.txt</tspan></text>
+
+  <g font-size="13" fill="#8b949e">
+    <text x="30" y="68">GitHub    <tspan fill="#79c0ff">github.com/Tschonleber</tspan></text>
+    <text x="30" y="90">X         <tspan fill="#79c0ff">@omnivaughn</tspan></text>
+    <text x="30" y="112">Hire me   <tspan fill="#79c0ff">radicalize.ai</tspan></text>
+  </g>
+
+  <text x="30" y="148" font-size="13" fill="#8b949e">tschonleber@obsidian:~$ <tspan fill="#c9d1d9">█</tspan></text>
+</svg>
