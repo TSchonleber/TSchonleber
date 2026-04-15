@@ -24,18 +24,61 @@ export function commitsToSvg(events) {
 
 async function fetchEvents() {
   const token = process.env.GITHUB_TOKEN;
-  const url = `https://api.github.com/users/${USER}/events/public?per_page=100`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'tschonleber-profile-updater',
-      Accept: 'application/vnd.github+json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`GitHub API ${res.status} ${res.statusText}`);
+  const headers = {
+    'User-Agent': 'tschonleber-profile-updater',
+    Accept: 'application/vnd.github+json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  // Step 1: Fetch recent public events. The /events/public endpoint returns
+  // PushEvents with metadata (ref, head SHA, before SHA) but NOT the commits
+  // array — that has to be fetched separately.
+  const eventsRes = await fetch(
+    `https://api.github.com/users/${USER}/events/public?per_page=100`,
+    { headers },
+  );
+  if (!eventsRes.ok) {
+    throw new Error(`GitHub events API ${eventsRes.status} ${eventsRes.statusText}`);
   }
-  return await res.json();
+  const rawEvents = await eventsRes.json();
+
+  // Step 2: For each PushEvent (up to a cap), fetch the head commit's details
+  // and rebuild the event into the shape dedupeCommits expects.
+  const MAX_PUSH_LOOKUPS = 10;
+  const pushes = rawEvents.filter(e => e.type === 'PushEvent').slice(0, MAX_PUSH_LOOKUPS);
+
+  const enriched = [];
+  for (const e of pushes) {
+    const sha = e.payload?.head;
+    const repoFull = e.repo?.name;
+    if (!sha || !repoFull) continue;
+
+    try {
+      const commitRes = await fetch(
+        `https://api.github.com/repos/${repoFull}/commits/${sha}`,
+        { headers },
+      );
+      if (!commitRes.ok) continue;
+      const commitJson = await commitRes.json();
+      const fullMessage = commitJson.commit?.message ?? '';
+      // Only keep the first line of the commit message (the summary)
+      const summaryMessage = fullMessage.split('\n')[0];
+
+      enriched.push({
+        type: 'PushEvent',
+        created_at: e.created_at,
+        repo: { name: repoFull },
+        payload: {
+          commits: [{ sha, message: summaryMessage }],
+        },
+      });
+    } catch (err) {
+      // Skip this push and continue — don't break the whole render on one bad commit fetch
+      continue;
+    }
+  }
+
+  return enriched;
 }
 
 async function main() {
